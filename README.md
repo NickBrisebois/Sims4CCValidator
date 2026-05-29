@@ -18,7 +18,7 @@ Created for the very specific scenario of restoring Sims 4 CC that was partially
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/Sims4CCValidator.git
+git clone https://github.com/NickBrisebois/Sims4CCValidator.git
 ```
 
 Install the required dependencies:

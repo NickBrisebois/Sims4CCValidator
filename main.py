@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
+from dataclasses import dataclass
 from pathlib import Path
 
 from files import CCType, find_cc_files, write_file_to_output
-from log_handler import LogHandler
+from log_handler import get_logger
 from validators.package_validator import Sims4PackageValidator
 from validators.ts4script_validator import TS4ScriptValidator
 
 
-def main():
-    logger = LogHandler.get_logger("Sims4CCValidator")
+@dataclass
+class CCCheckerArgs:
+    directory: Path
+    outdir: Path
+    skip: list[CCType]
+    dont_write_skipped: bool
+    dry_run: bool
 
+
+def parse_args() -> CCCheckerArgs:
     parser = ArgumentParser(description="Package Checker")
     parser.add_argument("-d", "--directory", type=Path, help="Directory to check")
     parser.add_argument("-o", "--outdir", type=Path, help="Output directory")
@@ -39,6 +47,19 @@ def main():
         help="Don't write any files to output directory",
     )
     args = parser.parse_args()
+    return CCCheckerArgs(
+        directory=args.directory,
+        outdir=args.outdir,
+        skip=[CCType[t] for t in args.skip] if args.skip else [],
+        dont_write_skipped=args.dont_write_skipped,
+        dry_run=args.dry_run,
+    )
+
+
+def main():
+    logger = get_logger("Sims4CCValidator")
+
+    args = parse_args()
     if args.skip:
         logger.info(f"Skipping validation for {args.skip}")
 
@@ -56,7 +77,7 @@ def main():
     for cc_file in find_cc_files(args.directory):
         file_stats[cc_file.file_type] += 1
         validator = validator_map.get(cc_file.file_type)
-        should_skip = str(cc_file.file_type) in args.skip
+        should_skip = cc_file.file_type in args.skip
         if validator and not should_skip and (error := validator.validate(cc_file)):
             logger.error(f"Validation error for {cc_file.file_name}: {error}")
             validity_stats["corrupted"] += 1

@@ -42,11 +42,11 @@ class DBPFIndexHeader:
 
 
 class DBPFCompressionType(Enum):
-    NONE = "NONE"
-    ZLIB = "ZLIB"
-    DELETED = "DELETED"
-    STREAMABLE = "STREAMABLE"
-    INTERNAL = "INTERNAL"
+    NONE = 0x0000
+    ZLIB = 0x5A42
+    DELETED = 0xFFE0
+    STREAMABLE = 0xFFFE
+    INTERNAL = 0xFFFF
 
 
 @dataclass
@@ -59,7 +59,7 @@ class DBPFEntry:
     compressed_size: int  # compressed size (obv)
     uncompressed_size: int  # uncompressed size
     extended_entry: bool  # this is technically part of the uncompressed_size field, pulled via the last bit
-    compression_type: int | None
+    compression_type: DBPFCompressionType | None
     comitted: bool | None
 
 
@@ -153,29 +153,26 @@ class Sims4PackageHandler:
             for entry in range(parsed_header.index_count):
                 self._file.seek(index_pos)
 
-                (
-                    resource_key_type,
-                    resource_key_group,
-                    resource_key_instance_upper_32_bits,
-                ) = None, None, None
-                if parsed_flags.constant_type != 0:
+                resource_key_type = None
+                resource_key_group = None
+                resource_key_instance_upper_32_bits = None
+                if parsed_flags.constant_type:
                     resource_key_type = struct.unpack("<I", self._file.read(4))[0]
-                if parsed_flags.constant_group != 0:
+                if parsed_flags.constant_group:
                     resource_key_group = struct.unpack("<I", self._file.read(4))[0]
-                if parsed_flags.constant_instance != 0:
+                if parsed_flags.constant_instance:
                     resource_key_instance_upper_32_bits = struct.unpack(
                         "<I", self._file.read(4)
                     )[0]
 
                 entry = self._file.read(magic.STATIC_ENTRY_SIZE)
-                struct_format = magic.STATIC_ENTRY_STRUCT_FORMAT
                 (
                     resource_key_instance_lower_32_bits,
                     resource_offset,
                     compressed_size_and_extended_entry,
                     uncompressed_size,
                 ) = struct.unpack(
-                    struct_format,
+                    magic.STATIC_ENTRY_STRUCT_FORMAT,
                     entry,
                 )
                 entry = DBPFEntry(
@@ -185,7 +182,7 @@ class Sims4PackageHandler:
                     resource_key_instance_lower_32_bits=resource_key_instance_lower_32_bits,
                     resource_offset=resource_offset,
                     compressed_size=compressed_size_and_extended_entry & 0x7FFFFFFF,
-                    extended_entry=(compressed_size_and_extended_entry >> 31) & 0x1,
+                    extended_entry=bool((compressed_size_and_extended_entry >> 31) & 1),
                     uncompressed_size=uncompressed_size,
                     compression_type=None,
                     comitted=None,
@@ -195,7 +192,7 @@ class Sims4PackageHandler:
                     compression_type, comitted = struct.unpack(
                         "<HH", self._file.read(4)
                     )
-                    entry.compression_type = compression_type
+                    entry.compression_type = DBPFCompressionType(compression_type)
                     entry.comitted = comitted
 
                 entries.append(entry)

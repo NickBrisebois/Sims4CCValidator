@@ -15,6 +15,7 @@ class ValidationError(Enum):
     INVALID_FILE_IDENTIFIER = "MISSING_FILE_IDENTIFIER"
     INVALID_FORMAT_VERSION = "INVALID_FORMAT_VERSION"
     INVALID_UNKNOWN_CONSTANT = "INVALID_UNKNOWN_CONSTANT"
+    INVALID_HOLE_OFFSET = "INVALID_HOLE_OFFSET"
 
     # Index issues
     INDEX_OUT_OF_BOUNDS = "INDEX_OUT_OF_BOUNDS"
@@ -95,12 +96,13 @@ class Sims4PackageValidator(BaseValidator):
             error_msg = "Invalid major/minor format version values"
             error_code = ValidationError.INVALID_FORMAT_VERSION
 
-        if (
-            header.unknown_constant_one != magic.EXPECTED_UNKNOWN_CONSTANT_ONE
-            or header.hole_offset != magic.EXPECTED_HOLE_OFFSET
-        ):
+        if header.unknown_constant_one != magic.EXPECTED_UNKNOWN_CONSTANT_ONE:
             error_msg = "Invalid unknown constant value(s)"
             error_code = ValidationError.INVALID_UNKNOWN_CONSTANT
+
+        if header.hole_offset != magic.EXPECTED_HOLE_OFFSET:
+            error_msg = "Invalid hole offset value"
+            error_code = ValidationError.INVALID_HOLE_OFFSET
 
         if error_code and error_msg:
             raise PackageException(
