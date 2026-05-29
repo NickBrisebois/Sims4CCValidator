@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
 
-from files import CCType, find_cc_files, write_file_to_output
+from files import CCFile, CCType, find_cc_files, write_file_to_output
 from log_handler import get_logger
 from validators.package_validator import Sims4PackageValidator
 from validators.ts4script_validator import TS4ScriptValidator
@@ -15,6 +15,7 @@ class CCCheckerArgs:
     directory: Path
     outdir: Path
     skip: list[CCType]
+    write_report: Path
     dont_write_skipped: bool
     dry_run: bool
 
@@ -40,6 +41,13 @@ def parse_args() -> CCCheckerArgs:
         help="Don't write skipped files to output directory",
     )
     parser.add_argument(
+        "-w",
+        "--write-report",
+        type=Path,
+        dest="write_report",
+        help="Write a report summary to the provided filepath",
+    )
+    parser.add_argument(
         "-t",
         "--dry-run",
         action="store_true",
@@ -51,9 +59,21 @@ def parse_args() -> CCCheckerArgs:
         directory=args.directory,
         outdir=args.outdir,
         skip=[CCType[t] for t in args.skip] if args.skip else [],
+        write_report=args.write_report,
         dont_write_skipped=args.dont_write_skipped,
         dry_run=args.dry_run,
     )
+
+
+def write_report(validity_stats: dict[str, list[CCFile]], output_path: Path):
+    with open(output_path, "w") as f:
+        for category, files in validity_stats.items():
+            f.write(f"{category}: {len(files)}\n")
+        f.write("\n")
+        for category, files in validity_stats.items():
+            for file in files:
+                f.write(f"{file.relative_path}\n")
+    f.close()
 
 
 def main():
@@ -66,7 +86,10 @@ def main():
     package_validator = Sims4PackageValidator(logger)
     ts4cript_validator = TS4ScriptValidator(logger)
 
-    validity_stats = {"corrupted": 0, "valid": 0}
+    validity_stats = {
+        "corrupted": list[CCFile](),
+        "valid": list[CCFile](),
+    }
     file_stats: dict[CCType, int] = {t: 0 for t in CCType}
 
     validator_map = {
@@ -80,17 +103,20 @@ def main():
         should_skip = cc_file.file_type in args.skip
         if validator and not should_skip and (error := validator.validate(cc_file)):
             logger.error(f"Validation error for {cc_file.file_name}: {error}")
-            validity_stats["corrupted"] += 1
+            validity_stats["corrupted"].append(cc_file)
             continue
         else:
-            validity_stats["valid"] += 1
+            validity_stats["valid"].append(cc_file)
             logger.info(f"Validated {cc_file.file_name}")
             if args.dry_run or (should_skip and args.dont_write_skipped):
                 continue
             write_file_to_output(cc_file, args.outdir)
 
-    logger.info(f"Validated {validity_stats['valid']} cc files")
-    logger.info(f"Found {validity_stats['corrupted']} corrupted cc files")
+    if args.write_report:
+        write_report(validity_stats, args.write_report)
+
+    logger.info(f"Validated {len(validity_stats['valid'])} cc files")
+    logger.info(f"Found {len(validity_stats['corrupted'])} corrupted cc files")
     logger.info(f"Found {file_stats[CCType.SCRIPT]} TS4Script files")
     logger.info(f"Found {file_stats[CCType.PACKAGE]} SimsPackage files")
     logger.info(f"Found {file_stats[CCType.IMAGE]} image files")
