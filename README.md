@@ -2,7 +2,7 @@
 
 Automated script for filtering out any corrupted Sims 4 CC. Files are passed in via a folder name and then any valid files are written to the output directory with the same folder structure.
 
-Currently only supports validating .package files but will validate .ts4script files and images as well
+Currently only supports validating .package file *headers* with the actual file content checking not quite complete. The end goal is also to validate package files fully along with .ts4scripts and images
 
 Created for the very specific scenario of restoring Sims 4 CC that was partially recovered from a failed hard drive.
 
