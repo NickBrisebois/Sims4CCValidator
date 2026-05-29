@@ -71,6 +71,13 @@ def write_report(validity_stats: dict[str, list[CCFile]], output_path: Path):
             f.write(f"{category}: {len(files)}\n")
         f.write("\n")
         for category, files in validity_stats.items():
+            f.write(
+                "\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+            )
+            f.write(f"{category.upper()} FILES:\n")
+            f.write(
+                "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+            )
             for file in files:
                 f.write(f"{file.relative_path}\n")
     f.close()
